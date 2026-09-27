@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-09-27
+
+### Changed
+
+- Made the Plugins settings surface a generic host that discovers independent
+  plugin settings contributions.
+- Moved AI usage controls into their own settings component so other plugins
+  no longer need to patch AI usage QML.
+- Allowed installation alongside a compatible existing Plugins settings host.
+
 ## [0.1.0] - 2026-09-27
 
 Initial release.
@@ -15,3 +25,4 @@ Initial release.
 - Checked installation and safe removal with backups and Ukishima restart handling.
 
 [0.1.0]: https://github.com/luisrocha/ukishima-ai-usage/releases/tag/v0.1.0
+[0.2.0]: https://github.com/luisrocha/ukishima-ai-usage/releases/tag/v0.2.0

@@ -1,19 +1,43 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import "../Singletons"
+import Qt.labs.folderlistmodel
 import "../components"
 
+/** Generic settings host. Plugins contribute independent *Settings.qml files. */
 SettingsSurface {
     id: root
+
+    readonly property int pluginSettingsApi: 1
+
     backSurface: "appearance"
     implicitHeight: content.implicitHeight
-    rows: [
-        { item: aiRow, kind: "seg", vals: ["on", "off", "auto"],
-          get: function () { return Flags.aiPluginVisibility; },
-          set: function (v) { Flags.aiPluginVisibility = v; } }
-    ]
+    rows: []
+    property var rowsBySource: ({})
+
+    function rebuildRows() {
+        var combined = [];
+        for (var i = 0; i < sectionFiles.count; i++) {
+            var source = String(sectionFiles.get(i, "fileUrl"));
+            var sectionRows = rowsBySource[source];
+            if (Array.isArray(sectionRows))
+                combined = combined.concat(sectionRows);
+        }
+        rows = combined;
+    }
+
+    function registerRows(source, sectionRows) {
+        rowsBySource[String(source)] = sectionRows;
+        rebuildRows();
+    }
+
+    FolderListModel {
+        id: sectionFiles
+        folder: Qt.resolvedUrl("plugins")
+        nameFilters: ["*Settings.qml"]
+        showDirs: false
+        sortField: FolderListModel.Name
+    }
 
     Column {
         id: content
@@ -27,36 +51,29 @@ SettingsSurface {
             title: "PLUGINS"
             showBack: true
         }
-        Item { width: 1; height: 12 * root.s }
-        SettingsRow {
-            id: aiRow
-            surface: root
-            name: "AI usage pill"
-            sub: "Quota and agent status"
-            // Reserve SettingsRow's normal icon slot; the shared robot is
-            // drawn over its intentionally empty GlyphIcon.
-            icon: "ai-usage-robot-placeholder"
-            last: true
 
-            SettingsSeg {
-                s: root.s
-                options: [
-                    { label: "On", value: "on" },
-                    { label: "Off", value: "off" },
-                    { label: "Auto", value: "auto" }
-                ]
-                value: Flags.aiPluginVisibility
-                onPicked: (v) => Flags.aiPluginVisibility = v
+        Item { width: 1; height: 12 * root.s }
+
+        Repeater {
+            id: sections
+            model: sectionFiles
+
+            delegate: Loader {
+                id: sectionLoader
+
+                required property int index
+                required property url fileUrl
+
+                width: content.width
+                height: item ? item.implicitHeight : 0
+                source: fileUrl
+
+                onLoaded: {
+                    item.surface = root;
+                    item.lastSection = index === sectionFiles.count - 1;
+                    root.registerRows(fileUrl, item.settingsRows);
+                }
             }
         }
-    }
-
-    AiUsageRobotIcon {
-        x: content.x + aiRow.x + 14 * root.s
-        y: content.y + aiRow.y + (aiRow.height - height) / 2
-        width: 17 * root.s
-        height: width
-        color: aiRow.focused ? Theme.cream : Theme.subtle
-        z: 2
     }
 }

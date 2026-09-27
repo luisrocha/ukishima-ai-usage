@@ -14,9 +14,12 @@ import time
 
 SOURCE = Path(__file__).resolve().parent
 STATE = ".ukishima-ai-usage"
-ASSETS = {
+PLUGIN_ASSETS = {
     "AiUsageIsland.qml": "qml/AiUsageIsland.qml",
     "components/AiUsageRobotIcon.qml": "qml/AiUsageRobotIcon.qml",
+    "surfaces/plugins/AiUsageSettings.qml": "qml/AiUsageSettings.qml",
+}
+HOST_ASSETS = {
     "surfaces/PluginsSurface.qml": "qml/PluginsSurface.qml",
 }
 
@@ -110,9 +113,12 @@ def restart_ukishima(root, was_running):
     print("Restarted Ukishima.")
 
 
-def plan(root):
-    originals, updated = {}, {}
-    for change in json.loads((SOURCE / "integration.json").read_text()):
+def integration_changes(name):
+    return json.loads((SOURCE / name).read_text())
+
+
+def apply_changes(root, entries, originals, updated):
+    for change in entries:
         name = change["file"]
         path = regular_path(root, name)
         if name not in originals:
@@ -122,21 +128,48 @@ def plan(root):
             raise ValueError(f"Incompatible or already modified Ukishima file: {name}. "
                              "Expected integration point exactly once; no files changed.")
         updated[name] = updated[name].replace(change["old"], change["new"], 1)
-    for name, asset in ASSETS.items():
+
+
+def add_assets(root, assets, updated):
+    for name, asset in assets.items():
         if regular_path(root, name).exists():
             raise ValueError(f"Refusing to overwrite existing extension file: {name}")
         updated[name] = (SOURCE / asset).read_text()
-    # A different Plugins implementation must be merged manually.
-    if "pluginsOpen" in originals["Pill.qml"].decode() or "aiPluginVisibility" in originals["Singletons/Flags.qml"].decode():
-        raise ValueError("An existing Plugins integration needs a manual merge.")
-    return originals, {name: text.encode("utf-8") for name, text in updated.items()}
+
+
+def compatible_host(root):
+    surface = regular_path(root, "surfaces/PluginsSurface.qml")
+    if not surface.exists():
+        return False
+    if "pluginSettingsApi: 1" not in surface.read_text():
+        raise ValueError("An incompatible Plugins settings surface is already installed.")
+    required = {
+        "surfaces/qmldir": "PluginsSurface PluginsSurface.qml",
+        "surfaces/Appearance.qml": 'surface: "plugins"',
+        "Pill.qml": 'readonly property bool pluginsOpen: surface === "plugins"',
+    }
+    for name, marker in required.items():
+        if marker not in regular_path(root, name).read_text():
+            raise ValueError(f"The Plugins settings host is incomplete: {name}")
+    return True
+
+
+def plan(root):
+    originals, updated = {}, {}
+    owns_host = not compatible_host(root)
+    if owns_host:
+        apply_changes(root, integration_changes("host-integration.json"), originals, updated)
+        add_assets(root, HOST_ASSETS, updated)
+    apply_changes(root, integration_changes("integration.json"), originals, updated)
+    add_assets(root, PLUGIN_ASSETS, updated)
+    return originals, {name: text.encode("utf-8") for name, text in updated.items()}, owns_host
 
 
 def install(root, check):
     state = root / STATE
     if state.exists() or state.is_symlink():
         raise ValueError("Installation state already exists. Uninstall before reinstalling.")
-    originals, updated = plan(root)
+    originals, updated, owns_host = plan(root)
     print("Compatible source layout. Files to install/change:")
     for name in updated:
         print(f"  {name}")
@@ -154,11 +187,13 @@ def install(root, check):
             backup.write_bytes(data)
         manifest = {
             "version": 1,
+            "owns_host": owns_host,
             "files": {name: {"installed": digest(data), "original": digest(originals[name]) if name in originals else None,
                              "mode": modes.get(name, 0o644)} for name, data in updated.items()},
         }
         (state / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         for name, data in updated.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
             atomic_write(root / name, data, modes.get(name))
             written.append(name)
     except Exception:
@@ -181,9 +216,20 @@ def uninstall(root, check):
         raise ValueError("Refusing symlinked backup directory.")
     manifest = json.loads(regular_path(root, STATE + "/manifest.json").read_text())
     changes = []
-    allowed = set(ASSETS) | {c["file"] for c in json.loads((SOURCE / "integration.json").read_text())}
-    if manifest.get("version") != 1 or set(manifest["files"]) != allowed:
+    allowed = set(PLUGIN_ASSETS) | set(HOST_ASSETS)
+    allowed |= {c["file"] for c in integration_changes("integration.json")}
+    allowed |= {c["file"] for c in integration_changes("host-integration.json")}
+    if (manifest.get("version") != 1
+            or not set(manifest["files"]).issubset(allowed)
+            or not set(PLUGIN_ASSETS).issubset(manifest["files"])):
         raise ValueError("Unrecognized installation manifest.")
+    if manifest.get("owns_host"):
+        settings_dir = root / "surfaces/plugins"
+        other_settings = [path for path in settings_dir.glob("*Settings.qml")
+                          if path.name != "AiUsageSettings.qml"]
+        if other_settings:
+            raise ValueError("Other plugin settings are installed. Remove them before "
+                             "uninstalling the Plugins settings host.")
     for name, record in manifest["files"].items():
         path = regular_path(root, name)
         if digest(path.read_bytes()) != record["installed"]:
@@ -206,6 +252,9 @@ def uninstall(root, check):
             else:
                 atomic_write(path, data, mode)
         shutil.rmtree(state)
+        settings_dir = root / "surfaces/plugins"
+        if settings_dir.is_dir() and not any(settings_dir.iterdir()):
+            settings_dir.rmdir()
     finally:
         restart_ukishima(root, was_running)
     print("Removed extension files and restored original source. User settings and "

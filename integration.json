@@ -5,11 +5,6 @@
     "new": "\n    AiUsageIsland { }\n}"
   },
   {
-    "file": "surfaces/qmldir",
-    "old": "Appearance Appearance.qml",
-    "new": "Appearance Appearance.qml\nPluginsSurface PluginsSurface.qml"
-  },
-  {
     "file": "components/qmldir",
     "old": "Ame Ame.qml",
     "new": "Ame Ame.qml\nAiUsageRobotIcon AiUsageRobotIcon.qml"
@@ -23,50 +18,5 @@
     "file": "Singletons/Flags.qml",
     "old": "            property real appGap: 1.0",
     "new": "            property real appGap: 1.0\n            property string aiPluginVisibility: \"on\""
-  },
-  {
-    "file": "surfaces/Appearance.qml",
-    "old": "        { item: ifaceTile, kind: \"nav\", surface: \"interface\" },",
-    "new": "        { item: ifaceTile, kind: \"nav\", surface: \"interface\" },\n        { item: pluginsTile, kind: \"nav\", surface: \"plugins\" },"
-  },
-  {
-    "file": "surfaces/Appearance.qml",
-    "old": "        SettingsRow {\n            id: updateTile",
-    "new": "        SettingsRow {\n            id: pluginsTile\n            surface: root\n            glyph: \"拡\"\n            name: \"Plugins\"\n            sub: \"AI usage\"\n            GlyphIcon {\n                width: 16 * root.s\n                height: 16 * root.s\n                name: \"chevron-right\"\n                color: root.focusRowItem === pluginsTile ? Theme.cream : Theme.iconDim\n                stroke: 1.9\n            }\n        }\n\n        SettingsRow {\n            id: updateTile"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "    readonly property bool interfaceOpen: surface === \"interface\"",
-    "new": "    readonly property bool interfaceOpen: surface === \"interface\"\n    readonly property bool pluginsOpen: surface === \"plugins\""
-  },
-  {
-    "file": "Pill.qml",
-    "old": "    readonly property bool settingsLike: appearanceOpen || displayOpen || themeOpen || interfaceOpen || fontpickerOpen || updateOpen",
-    "new": "    readonly property bool settingsLike: appearanceOpen || displayOpen || themeOpen || interfaceOpen || pluginsOpen || fontpickerOpen || updateOpen"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "        interface:  { size: () => Qt.size(settingsW, surfaceItem(\"interface\").implicitHeight + 29 * s), ame: () => surfaceItem(\"interface\") },",
-    "new": "        interface:  { size: () => Qt.size(settingsW, surfaceItem(\"interface\").implicitHeight + 29 * s), ame: () => surfaceItem(\"interface\") },\n        plugins:    { size: () => Qt.size(settingsW, surfaceItem(\"plugins\").implicitHeight + 29 * s), ame: () => surfaceItem(\"plugins\") },"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "        interface:  () => ldInterface,",
-    "new": "        interface:  () => ldInterface,\n        plugins:    () => ldPlugins,"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "        if (pill.interfaceOpen)\n            return ldInterface.item;",
-    "new": "        if (pill.interfaceOpen)\n            return ldInterface.item;\n        if (pill.pluginsOpen)\n            return ldPlugins.item;"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "        if (pill.displayOpen || pill.themeOpen || pill.interfaceOpen || pill.fontpickerOpen) {",
-    "new": "        if (pill.displayOpen || pill.themeOpen || pill.interfaceOpen || pill.pluginsOpen || pill.fontpickerOpen) {"
-  },
-  {
-    "file": "Pill.qml",
-    "old": "    Loader {\n        id: ldFontpicker",
-    "new": "    Loader {\n        id: ldPlugins\n        active: false\n        anchors.fill: parent\n        sourceComponent: PluginsSurface {\n            s: pill.s * pill.settingsScale\n            open: pill.pluginsOpen\n            morphCloseness: pill.morphCloseness\n            onRequestClose: pill.requestClose()\n            onRequestSurface: (name) => pill.requestSurface(name)\n        }\n    }\n\n    Loader {\n        id: ldFontpicker"
   }
 ]
