@@ -1,0 +1,8 @@
+The extension uses Ukishima's QML components and visual conventions.
+
+Ukishima: https://github.com/amanhex/ukishima
+Copyright (c) 2026 amanhex; MIT License (included in LICENSE).
+Ukishima credits Gakuseei's Ricelin as its original shell foundation.
+
+ai-usagebar: https://github.com/akitaonrails/ai-usagebar
+An external executable dependency; its implementation is not bundled here.

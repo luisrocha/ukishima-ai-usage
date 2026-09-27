@@ -1,0 +1,14 @@
+#!/bin/sh
+# Optional adapter for any agent that can run a hook command.
+set -eu
+case "${1:-}" in
+    running|waiting|idle) ;;
+    *) printf '%s\n' 'Usage: ukishima-ai-status running|waiting|idle' >&2; exit 2 ;;
+esac
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/ukishima-ai-usage"
+umask 077
+mkdir -p "$state_dir"
+temporary=$(mktemp "$state_dir/.agent-status.XXXXXX")
+trap 'rm -f "$temporary"' EXIT HUP INT TERM
+printf '%s\n' "$1" > "$temporary"
+mv "$temporary" "$state_dir/agent-status"
